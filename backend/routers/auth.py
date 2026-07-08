@@ -19,8 +19,22 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 # Team login store — replace with a proper `users` table before adding a
 # second team member; a single shared credential has no audit trail for
 # who actually sent a campaign.
+#
+# ADMIN_PASSWORD is a SEPARATE credential from JWT_SECRET, on purpose.
+# JWT_SECRET is a signing key: arbitrary length, never typed by a human,
+# never passed to bcrypt. ADMIN_PASSWORD is an actual login password:
+# bounded length, meant to be typed. Hashing JWT_SECRET as a password was
+# the bug that crashed this file — bcrypt hard-caps input at 72 bytes and
+# a properly long signing secret blows past that. Don't reintroduce this
+# by pointing ADMIN_PASSWORD back at JWT_SECRET.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise RuntimeError("ADMIN_PASSWORD is not set — check your .env file")
+if len(ADMIN_PASSWORD.encode("utf-8")) > 72:
+    raise RuntimeError("ADMIN_PASSWORD exceeds bcrypt's 72-byte limit — use a shorter password")
+
 _FAKE_USER_DB = {
-    os.getenv("SMTP_EMAIL", "admin@alco.com"): pwd_context.hash(os.getenv("JWT_SECRET", "changeme"))
+    os.getenv("SMTP_EMAIL", "admin@alco.com"): pwd_context.hash(ADMIN_PASSWORD)
 }
 
 
