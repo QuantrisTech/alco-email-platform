@@ -1,129 +1,139 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, X, Zap, Trash2, Pencil } from "lucide-react";
+import { useState, useEffect, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
+import { Plus, X, Zap, Trash2, Pencil } from "lucide-react"
+import { PageShell } from "../components/Topbar"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 
 function authHeaders() {
-  const token = localStorage.getItem("access_token");
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const token = localStorage.getItem("access_token")
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
 }
 
 const TRIGGER_LABELS = {
   new_contact_webhook: "New Contact (Webhook)",
   schedule: "Scheduled",
   manual: "Manual",
-};
+}
 
 export default function Automations() {
-  const navigate = useNavigate();
-  const [automations, setAutomations] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate()
+  const [automations, setAutomations] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  
   const [form, setForm] = useState({
     name: "",
     trigger_type: "manual",
     trigger_config_value: "",
     template_id: "",
     is_active: false,
-  });
+  })
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError("");
+    setLoading(true)
+    setError("")
     try {
       const [autoRes, tmplRes] = await Promise.all([
         fetch(`${API_URL}/automations`, { headers: authHeaders() }),
         fetch(`${API_URL}/templates`, { headers: authHeaders() }),
-      ]);
+      ])
 
       if (autoRes.status === 401 || tmplRes.status === 401) {
-        localStorage.removeItem("access_token");
-        navigate("/login");
-        return;
+        localStorage.removeItem("access_token")
+        navigate("/login")
+        return
       }
-      if (!autoRes.ok) throw new Error("Failed to load automations");
-      if (!tmplRes.ok) throw new Error("Failed to load templates");
+      if (!autoRes.ok) throw new Error("Failed to load automations")
+      if (!tmplRes.ok) throw new Error("Failed to load templates")
 
-      setAutomations((await autoRes.json()).items);
-      setTemplates((await tmplRes.json()).items);
+      const autoData = await autoRes.json()
+      const tmplData = await tmplRes.json()
+      setAutomations(autoData.items || [])
+      setTemplates(tmplData.items || [])
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [navigate]);
+  }, [navigate])
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchAll()
+  }, [fetchAll])
 
   const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", trigger_type: "manual", trigger_config_value: "", template_id: templates[0]?.id || "", is_active: false });
-    setModalOpen(true);
-  };
+    setEditing(null)
+    setForm({ 
+      name: "", 
+      trigger_type: "manual", 
+      trigger_config_value: "", 
+      template_id: templates[0]?.id || "", 
+      is_active: false 
+    })
+    setModalOpen(true)
+  }
 
   const openEdit = (a) => {
-    setEditing(a);
-    let configValue = "";
+    setEditing(a)
+    let configValue = ""
     if (a.trigger_type === "schedule" && a.trigger_config?.day_of_month) {
-      configValue = String(a.trigger_config.day_of_month);
+      configValue = String(a.trigger_config.day_of_month)
     } else if (a.trigger_config?.inactive_days) {
-      configValue = String(a.trigger_config.inactive_days);
+      configValue = String(a.trigger_config.inactive_days)
     }
     setForm({
       name: a.name,
       trigger_type: a.trigger_type,
       trigger_config_value: configValue,
-      template_id: a.template.template_id || "",
+      template_id: a.template?.template_id || a.template_id || "",
       is_active: a.is_active,
-    });
-    setModalOpen(true);
-  };
+    })
+    setModalOpen(true)
+  }
 
   const buildTriggerConfig = () => {
     if (form.trigger_type === "schedule" && form.trigger_config_value) {
-      return { day_of_month: parseInt(form.trigger_config_value, 10) };
+      return { day_of_month: parseInt(form.trigger_config_value, 10) }
     }
     if (form.trigger_type === "new_contact_webhook" && form.trigger_config_value) {
-      return { inactive_days: parseInt(form.trigger_config_value, 10) };
+      return { inactive_days: parseInt(form.trigger_config_value, 10) }
     }
-    return {};
-  };
+    return {}
+  }
 
   const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
+    e.preventDefault()
+    setSaving(true)
+    setError("")
     try {
-      const url = editing ? `${API_URL}/automations/${editing.id}` : `${API_URL}/automations`;
-      const method = editing ? "PATCH" : "POST";
+      const url = editing ? `${API_URL}/automations/${editing.id}` : `${API_URL}/automations`
+      const method = editing ? "PATCH" : "POST"
       const payload = {
         name: form.name,
         trigger_type: form.trigger_type,
         trigger_config: buildTriggerConfig(),
         template_id: form.template_id,
         is_active: form.is_active,
-      };
-
-      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Save failed");
       }
-      setModalOpen(false);
-      fetchAll();
+
+      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(payload) })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.detail || "Save failed")
+      }
+      setModalOpen(false)
+      fetchAll()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const toggleActive = async (a) => {
     try {
@@ -131,107 +141,126 @@ export default function Automations() {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ is_active: !a.is_active }),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-      fetchAll();
+      })
+      if (!res.ok) throw new Error("Failed to update status")
+      fetchAll()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
-  };
+  }
 
   const handleDelete = async (a) => {
-    if (!confirm(`Delete automation "${a.name}"? This can't be undone.`)) return;
+    if (!confirm(`Delete automation "${a.name}"? This can't be undone.`)) return
     try {
-      const res = await fetch(`${API_URL}/automations/${a.id}`, { method: "DELETE", headers: authHeaders() });
-      if (!res.ok && res.status !== 204) throw new Error("Delete failed");
-      fetchAll();
+      const res = await fetch(`${API_URL}/automations/${a.id}`, { method: "DELETE", headers: authHeaders() })
+      if (!res.ok && res.status !== 204) throw new Error("Delete failed")
+      fetchAll()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
-  };
+  }
 
   return (
-    <div className="max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-darktext/50">
-          Automations can be configured here, but triggers do not fire automatically yet.
-        </p>
+    <PageShell
+      title="Automations"
+      description="Trigger-based email flows that run on autopilot."
+      actions={
         <button
           onClick={openCreate}
           disabled={templates.length === 0}
-          className="flex items-center gap-2 bg-gold hover:bg-gold-alt text-navy font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Plus size={16} strokeWidth={2.5} />
-          New Automation
+          <Plus className="size-4" /> New Automation
         </button>
-      </div>
-
+      }
+    >
+      {/* Informative Warning Banner */}
       {templates.length === 0 && !loading && (
-        <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-gold-alt bg-gold/10 border-gold/30">
+        <div className="mb-4 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           Create a template first — automations need one to send from.
         </div>
       )}
 
       {error && (
-        <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-danger bg-red-50 border-red-200">
+        <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
+      {/* Grid Canvas Area */}
       {loading ? (
-        <div className="text-center py-16 text-darktext/40">Loading automations...</div>
-      ) : automations.length === 0 ? (
-        <div className="bg-white rounded-xl border border-border py-16 flex flex-col items-center text-center shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-lightgray flex items-center justify-center mb-3">
-            <Zap size={20} className="text-darktext/30" />
+        <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Loading automation maps...
           </div>
-          <p className="text-darktext/70 font-medium">No automations yet</p>
-          <p className="text-darktext/40 text-xs mt-1">Create your first automation to get started</p>
+        </div>
+      ) : automations.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card py-16">
+          <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+              <Zap className="size-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No automations yet</p>
+            <p className="text-sm text-muted-foreground">Create your first automated flow to begin tracking.</p>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {automations.map((a) => (
-            <div key={a.id} className="bg-white rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition">
-              <div className="flex items-start justify-between mb-3">
+            <div key={a.id} className="group relative rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="font-semibold text-navy">{a.name}</h3>
-                  <p className="text-xs text-darktext/50 mt-0.5">{TRIGGER_LABELS[a.trigger_type] || a.trigger_type}</p>
+                  <h3 className="font-semibold text-foreground text-base tracking-tight">{a.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {TRIGGER_LABELS[a.trigger_type] || a.trigger_type}
+                  </p>
                 </div>
+                {/* Modern Toggle Switch */}
                 <button
                   onClick={() => toggleActive(a)}
-                  className={`relative w-10 h-5.5 rounded-full transition-colors shrink-0 ${a.is_active ? "bg-success" : "bg-border"}`}
-                  style={{ height: "22px" }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
+                    a.is_active ? "bg-success" : "bg-muted"
+                  }`}
                   title={a.is_active ? "Active — click to pause" : "Paused — click to activate"}
                 >
                   <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${a.is_active ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                    className={`pointer-events-none inline-block size-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      a.is_active ? "translate-x-4" : "translate-x-0"
+                    }`}
                   />
                 </button>
               </div>
 
-              <p className="text-xs text-darktext/40 mb-1">Template</p>
-              <p className="text-sm text-darktext/70 mb-3">{a.template.name || "—"}</p>
+              <div className="space-y-1 mb-5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Template</span>
+                <p className="text-sm font-medium text-foreground/80 truncate">{a.template?.name || "—"}</p>
+              </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t border-border pt-4">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    a.is_active ? "bg-success/10 text-success" : "bg-lightgray text-darktext/50"
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                    a.is_active 
+                      ? "bg-success/10 text-success" 
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {a.is_active ? "Active" : "Paused"}
                 </span>
-                <div className="flex gap-1">
+                <div className="flex gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                   <button
                     onClick={() => openEdit(a)}
-                    className="text-darktext/40 hover:text-navy hover:bg-lightgray p-1.5 rounded-md transition"
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="Edit flow"
                   >
-                    <Pencil size={14} />
+                    <Pencil className="size-3.5" />
                   </button>
                   <button
                     onClick={() => handleDelete(a)}
-                    className="text-darktext/40 hover:text-danger hover:bg-red-50 p-1.5 rounded-md transition"
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    aria-label="Delete flow"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </div>
@@ -240,37 +269,38 @@ export default function Automations() {
         </div>
       )}
 
+      {/* Configuration Dialog Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-navy/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-navy text-lg">{editing ? "Edit Automation" : "New Automation"}</h2>
+              <h2 className="font-semibold text-foreground text-lg">{editing ? "Edit Automation" : "New Automation"}</h2>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-darktext/40 hover:text-darktext hover:bg-lightgray p-1 rounded-md transition"
+                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <X size={18} />
+                <X className="size-4" />
               </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Automation Name</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Automation Name</label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                   placeholder="Welcome New Contacts"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Trigger</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Trigger Block</label>
                 <select
                   value={form.trigger_type}
                   onChange={(e) => setForm({ ...form, trigger_type: e.target.value, trigger_config_value: "" })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                 >
                   <option value="manual">Manual</option>
                   <option value="new_contact_webhook">New Contact (Webhook)</option>
@@ -280,14 +310,15 @@ export default function Automations() {
 
               {form.trigger_type === "schedule" && (
                 <div>
-                  <label className="block text-xs font-medium text-navy-light mb-1.5">Day of Month</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Day of Month</label>
                   <input
+                    required
                     type="number"
                     min="1"
                     max="28"
                     value={form.trigger_config_value}
                     onChange={(e) => setForm({ ...form, trigger_config_value: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                     placeholder="1"
                   />
                 </div>
@@ -295,27 +326,27 @@ export default function Automations() {
 
               {form.trigger_type === "new_contact_webhook" && (
                 <div>
-                  <label className="block text-xs font-medium text-navy-light mb-1.5">
-                    Inactive Days <span className="text-darktext/40 font-normal">(optional)</span>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Inactive Days <span className="text-muted-foreground font-normal lowercase">(optional)</span>
                   </label>
                   <input
                     type="number"
                     min="1"
                     value={form.trigger_config_value}
                     onChange={(e) => setForm({ ...form, trigger_config_value: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                     placeholder="7"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Template</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Dispatch Template</label>
                 <select
                   required
                   value={form.template_id}
                   onChange={(e) => setForm({ ...form, template_id: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                 >
                   <option value="" disabled>Select a template</option>
                   {templates.map((t) => (
@@ -324,27 +355,29 @@ export default function Automations() {
                 </select>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-darktext/70">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="rounded border-border"
-                />
-                Activate immediately
-              </label>
+              <div className="pt-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                    className="size-4 rounded border-border text-accent focus:ring-accent/30 bg-background"
+                  />
+                  Activate layout immediately
+                </label>
+              </div>
 
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-gold hover:bg-gold-alt text-navy font-semibold py-3 rounded-lg text-sm mt-2 disabled:opacity-60 transition shadow-sm"
+                className="w-full h-11 inline-flex items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95 disabled:opacity-60 mt-2"
               >
-                {saving ? "Saving..." : editing ? "Save Changes" : "Create Automation"}
+                {saving ? "Saving Changes..." : editing ? "Save Automation Changes" : "Create Core Automation"}
               </button>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
+    </PageShell>
+  )
 }

@@ -41,6 +41,12 @@ def login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return TokenResponse(access_token=create_access_token(user.email))
 
+@router.get("/me", response_model=UserOut)
+def get_me(current_user_email: str = Depends(get_current_user)):
+    user = User.objects(email=current_user_email).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserOut(id=str(user.id), email=user.email, name=user.name, role=user.role)
 
 @router.post("/register", response_model=UserOut, status_code=201)
 def register(req: RegisterRequest, _admin: str = Depends(get_current_user)):

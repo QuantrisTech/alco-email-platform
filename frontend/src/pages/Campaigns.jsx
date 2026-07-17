@@ -1,31 +1,26 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, X, Send, Trash2, Pencil, Clock } from "lucide-react";
+import { useState, useEffect, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
+import { Plus, Send, Pencil, MoreHorizontal, X, Trash2 } from "lucide-react"
+import { PageShell } from "../components/Topbar"
+import { StatusBadge } from "../components/StatusBadge"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 
 function authHeaders() {
-  const token = localStorage.getItem("access_token");
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const token = localStorage.getItem("access_token")
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
 }
 
-const STATUS_STYLES = {
-  draft: "bg-lightgray text-darktext/60",
-  scheduled: "bg-gold/20 text-gold-alt",
-  sending: "bg-navy-lighter/15 text-navy-lighter",
-  sent: "bg-success/10 text-success",
-  failed: "bg-danger/10 text-danger",
-};
-
 export default function Campaigns() {
-  const navigate = useNavigate();
-  const [campaigns, setCampaigns] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate()
+  const [campaigns, setCampaigns] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  
   const [form, setForm] = useState({
     name: "",
     template_id: "",
@@ -33,42 +28,42 @@ export default function Campaigns() {
     recipients_value: "",
     schedule_type: "now",
     schedule_at: "",
-  });
+  })
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError("");
+    setLoading(true)
+    setError("")
     try {
       const [campRes, tmplRes] = await Promise.all([
         fetch(`${API_URL}/campaigns`, { headers: authHeaders() }),
         fetch(`${API_URL}/templates`, { headers: authHeaders() }),
-      ]);
+      ])
 
       if (campRes.status === 401 || tmplRes.status === 401) {
-        localStorage.removeItem("access_token");
-        navigate("/login");
-        return;
+        localStorage.removeItem("access_token")
+        navigate("/login")
+        return
       }
-      if (!campRes.ok) throw new Error("Failed to load campaigns");
-      if (!tmplRes.ok) throw new Error("Failed to load templates");
+      if (!campRes.ok) throw new Error("Failed to load campaigns")
+      if (!tmplRes.ok) throw new Error("Failed to load templates")
 
-      const campData = await campRes.json();
-      const tmplData = await tmplRes.json();
-      setCampaigns(campData.items);
-      setTemplates(tmplData.items);
+      const campData = await campRes.json()
+      const tmplData = await tmplRes.json()
+      setCampaigns(campData.items || [])
+      setTemplates(tmplData.items || [])
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [navigate]);
+  }, [navigate])
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchAll()
+  }, [fetchAll])
 
   const openCreate = () => {
-    setEditing(null);
+    setEditing(null)
     setForm({
       name: "",
       template_id: templates[0]?.id || "",
@@ -76,30 +71,30 @@ export default function Campaigns() {
       recipients_value: "",
       schedule_type: "now",
       schedule_at: "",
-    });
-    setModalOpen(true);
-  };
+    })
+    setModalOpen(true)
+  }
 
   const openEdit = (c) => {
-    setEditing(c);
+    setEditing(c)
     setForm({
       name: c.name,
-      template_id: c.template.template_id || "",
-      recipients_type: c.recipients.type || "all",
-      recipients_value: c.recipients.value || "",
+      template_id: c.template?.template_id || c.template_id || "",
+      recipients_type: c.recipients?.type || "all",
+      recipients_value: c.recipients?.value || "",
       schedule_type: c.schedule_type,
       schedule_at: c.schedule_at ? c.schedule_at.slice(0, 16) : "",
-    });
-    setModalOpen(true);
-  };
+    })
+    setModalOpen(true)
+  }
 
   const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
+    e.preventDefault()
+    setSaving(true)
+    setError("")
     try {
-      const url = editing ? `${API_URL}/campaigns/${editing.id}` : `${API_URL}/campaigns`;
-      const method = editing ? "PATCH" : "POST";
+      const url = editing ? `${API_URL}/campaigns/${editing.id}` : `${API_URL}/campaigns`
+      const method = editing ? "PATCH" : "POST"
       const payload = {
         name: form.name,
         template_id: form.template_id,
@@ -109,168 +104,196 @@ export default function Campaigns() {
         },
         schedule_type: form.schedule_type,
         schedule_at: form.schedule_type === "scheduled" && form.schedule_at ? form.schedule_at : null,
-      };
-
-      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Save failed");
       }
-      setModalOpen(false);
-      fetchAll();
+
+      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(payload) })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.detail || "Save failed")
+      }
+      setModalOpen(false)
+      fetchAll()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const handleDelete = async (c) => {
-    if (!confirm(`Delete campaign "${c.name}"? This can't be undone.`)) return;
+    if (!confirm(`Delete campaign "${c.name}"? This can't be undone.`)) return
     try {
-      const res = await fetch(`${API_URL}/campaigns/${c.id}`, { method: "DELETE", headers: authHeaders() });
+      const res = await fetch(`${API_URL}/campaigns/${c.id}`, { method: "DELETE", headers: authHeaders() })
       if (!res.ok && res.status !== 204) {
-        const data = await res.json();
-        throw new Error(data.detail || "Delete failed");
+        const data = await res.json()
+        throw new Error(data.detail || "Delete failed")
       }
-      fetchAll();
+      fetchAll()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
-  };
+  }
 
   return (
-    <div className="max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-darktext/50">
-          Sending is not yet enabled — campaigns can be created and scheduled as drafts.
-        </p>
+    <PageShell
+      title="Campaigns"
+      description="Create, schedule and track your email campaigns."
+      actions={
         <button
           onClick={openCreate}
           disabled={templates.length === 0}
-          className="flex items-center gap-2 bg-gold hover:bg-gold-alt text-navy font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Plus size={16} strokeWidth={2.5} />
-          New Campaign
+          <Plus className="size-4" /> New Campaign
         </button>
-      </div>
-
+      }
+    >
+      {/* Messages */}
       {templates.length === 0 && !loading && (
-        <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-gold-alt bg-gold/10 border-gold/30">
+        <div className="mb-4 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           Create a template first — campaigns need one to send from.
         </div>
       )}
 
       {error && (
-        <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-danger bg-red-50 border-red-200">
+        <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {loading ? (
-        <div className="text-center py-16 text-darktext/40">Loading campaigns...</div>
-      ) : campaigns.length === 0 ? (
-        <div className="bg-white rounded-xl border border-border py-16 flex flex-col items-center text-center shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-lightgray flex items-center justify-center mb-3">
-            <Send size={20} className="text-darktext/30" />
-          </div>
-          <p className="text-darktext/70 font-medium">No campaigns yet</p>
-          <p className="text-darktext/40 text-xs mt-1">Create your first campaign to get started</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+      {/* Main Grid Card Content */}
+      <div className="rounded-2xl border border-border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left">
             <thead>
-              <tr className="bg-lightgray/60 border-b border-border text-left">
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide">Campaign</th>
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide">Template</th>
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide">Recipients</th>
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide">Schedule</th>
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide">Status</th>
-                <th className="px-5 py-3 font-medium text-darktext/50 text-xs uppercase tracking-wide text-right">Actions</th>
+              <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-5 py-3 font-semibold">Campaign</th>
+                <th className="px-5 py-3 font-semibold">Audience</th>
+                <th className="px-5 py-3 font-semibold">Recipients</th>
+                <th className="px-5 py-3 font-semibold">Open</th>
+                <th className="px-5 py-3 font-semibold">Click</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {campaigns.map((c) => (
-                <tr key={c.id} className="border-b border-border last:border-0 hover:bg-lightgray/40 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-darktext">{c.name}</td>
-                  <td className="px-5 py-3.5 text-darktext/70">{c.template.name || "—"}</td>
-                  <td className="px-5 py-3.5 text-darktext/70 capitalize">
-                    {c.recipients.type}
-                    {c.recipients.value ? `: ${c.recipients.value}` : ""}
-                  </td>
-                  <td className="px-5 py-3.5 text-darktext/70">
-                    {c.schedule_type === "now" ? (
-                      "Immediate"
-                    ) : c.schedule_at ? (
-                      <span className="flex items-center gap-1.5">
-                        <Clock size={13} className="text-darktext/40" />
-                        {new Date(c.schedule_at).toLocaleString()}
-                      </span>
-                    ) : (
-                      c.schedule_type
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[c.status] || ""}`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    {(c.status === "draft" || c.status === "scheduled") && (
-                      <button
-                        onClick={() => openEdit(c)}
-                        className="text-darktext/40 hover:text-navy hover:bg-lightgray p-1.5 rounded-md transition"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(c)}
-                      className="text-darktext/40 hover:text-danger hover:bg-red-50 p-1.5 rounded-md transition ml-1"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Loading campaigns backend records...
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : campaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-16">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                        <Send className="size-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">No campaigns yet</p>
+                      <p className="text-sm text-muted-foreground">Create your first campaign to get started.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                campaigns.map((c) => {
+                  const audienceText = c.recipients?.type === "all" 
+                    ? "All Contacts" 
+                    : `${c.recipients?.type || "—"}${c.recipients?.value ? `: ${c.recipients.value}` : ""}`;
+                  
+                  return (
+                    <tr key={c.id} className="group transition-colors hover:bg-muted/40">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Send className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {c.template?.name || "No Template"} · {c.schedule_at ? new Date(c.schedule_at).toLocaleDateString() : (c.schedule_type === 'now' ? "Immediate" : c.schedule_type)}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-muted-foreground capitalize">{audienceText}</td>
+                      <td className="px-5 py-4 text-sm font-medium text-foreground">
+                        {c.recipients_count !== undefined ? c.recipients_count.toLocaleString() : (c.recipients?.type === "all" ? "All" : "—")}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-foreground">
+                        {c.openRate !== undefined && c.openRate !== null ? `${c.openRate}%` : "—"}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-foreground">
+                        {c.clickRate !== undefined && c.clickRate !== null ? `${c.clickRate}%` : "—"}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge status={c.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+                          {(c.status === "draft" || c.status === "scheduled") && (
+                            <button
+                              onClick={() => openEdit(c)}
+                              aria-label={`Edit ${c.name}`}
+                              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <Pencil className="size-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(c)}
+                            aria-label={`Delete ${c.name}`}
+                            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
 
+      {/* Modern UI Dialog Modal Overlay */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-navy/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-navy text-lg">{editing ? "Edit Campaign" : "New Campaign"}</h2>
+              <h2 className="font-semibold text-foreground text-lg">{editing ? "Edit Campaign" : "New Campaign"}</h2>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-darktext/40 hover:text-darktext hover:bg-lightgray p-1 rounded-md transition"
+                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <X size={18} />
+                <X className="size-4" />
               </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Campaign Name</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Campaign Name</label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                   placeholder="July Newsletter"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Template</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Template</label>
                 <select
                   required
                   value={form.template_id}
                   onChange={(e) => setForm({ ...form, template_id: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                 >
                   <option value="" disabled>Select a template</option>
                   {templates.map((t) => (
@@ -280,14 +303,14 @@ export default function Campaigns() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Recipients</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Recipients Target</label>
                 <div className="flex gap-2">
                   <select
                     value={form.recipients_type}
                     onChange={(e) => setForm({ ...form, recipients_type: e.target.value, recipients_value: "" })}
-                    className="w-32 px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                    className="h-10 w-32 rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                   >
-                    <option value="all">All</option>
+                    <option value="all">All Contacts</option>
                     <option value="batch">Batch</option>
                     <option value="course">Course</option>
                   </select>
@@ -297,20 +320,20 @@ export default function Campaigns() {
                       value={form.recipients_value}
                       onChange={(e) => setForm({ ...form, recipients_value: e.target.value })}
                       placeholder={form.recipients_type === "batch" ? "e.g. 2026-A" : "e.g. Email Automation"}
-                      className="flex-1 px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                      className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-navy-light mb-1.5">Schedule</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Schedule Options</label>
                 <select
                   value={form.schedule_type}
                   onChange={(e) => setForm({ ...form, schedule_type: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                 >
-                  <option value="now">Send Immediately (once sending is enabled)</option>
+                  <option value="now">Send Immediately</option>
                   <option value="scheduled">Scheduled — one time</option>
                   <option value="recurring_monthly">Recurring — monthly</option>
                 </select>
@@ -318,13 +341,13 @@ export default function Campaigns() {
 
               {form.schedule_type === "scheduled" && (
                 <div>
-                  <label className="block text-xs font-medium text-navy-light mb-1.5">Send At</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Send At</label>
                   <input
                     required
                     type="datetime-local"
                     value={form.schedule_at}
                     onChange={(e) => setForm({ ...form, schedule_at: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:border-navy-lighter focus:ring-2 focus:ring-navy-lighter/10 transition"
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
                   />
                 </div>
               )}
@@ -332,14 +355,14 @@ export default function Campaigns() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-gold hover:bg-gold-alt text-navy font-semibold py-3 rounded-lg text-sm mt-2 disabled:opacity-60 transition shadow-sm"
+                className="w-full h-11 inline-flex items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95 disabled:opacity-60"
               >
-                {saving ? "Saving..." : editing ? "Save Changes" : "Create Campaign"}
+                {saving ? "Saving Data..." : editing ? "Save Campaign Details" : "Create Dynamic Campaign"}
               </button>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
+    </PageShell>
+  )
 }

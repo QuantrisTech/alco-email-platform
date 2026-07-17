@@ -1,42 +1,49 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Sidebar from './components/Sidebar'
-import Topbar from './components/Topbar'
-import Dashboard from './pages/Dashboard'
-import Login from "./pages/Login";
-import Contacts from './pages/Contacts'
-import Templates from './pages/Templates'
-import Campaigns from './pages/Campaigns'
-import Automations from './pages/Automations'
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Sidebar } from "./components/Sidebar";
+import Dashboard from "./pages/Dashboard";
+import Contacts from "./pages/Contacts";
+import Templates from "./pages/Templates";
+import Campaigns from "./pages/Campaigns";
+import Automations from "./pages/Automations";
+import Analytics from "./pages/Analytics";
+import Login from "./pages/Login"; // Make sure your Login component is imported here
 
-const placeholder = (title) => (
-  <div className="p-8 text-darktext/50 text-sm">{title} — not yet built.</div>
-)
+// A wrapper layout that only shows the Sidebar and dashboard styling if a token exists
+function ProtectedLayout({ children }) {
+  const token = localStorage.getItem("access_token");
 
-function Layout({ title, children }) {
+  // If no token is found, forcefully redirect straight to the login route
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If authenticated, render your exact structural sidebar layout
   return (
-    <div className="flex">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
-      <div className="flex-1 min-h-screen">
-        <Topbar title={title} />
-        <main className="p-8">{children}</main>
+      <div className="lg:pl-64">
+        {children}
       </div>
     </div>
-  )
+  );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout title="Dashboard"><Dashboard /></Layout>} />
-        <Route path="/contacts" element={<Layout title="Contacts"><Contacts /></Layout>} />
-        <Route path="/templates" element={<Layout title="Templates"><Templates /></Layout>} />
-        <Route path="/campaigns" element={<Layout title="Campaigns"><Campaigns /></Layout>} />
-        <Route path="/automations" element={<Layout title="Automations"><Automations /></Layout>} />
-        <Route path="/analytics" element={<Layout title="Analytics">{placeholder('Analytics')}</Layout>} />
-        <Route path="/login" element={<Login />} />
-        
-      </Routes>
-    </BrowserRouter>
-  )
+    <Routes>
+      {/* Public Route - Safe from being trapped by Sidebar layouts */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected App Routes - Wrapped securely inside your layout framework */}
+      <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+      <Route path="/contacts" element={<ProtectedLayout><Contacts /></ProtectedLayout>} />
+      <Route path="/templates" element={<ProtectedLayout><Templates /></ProtectedLayout>} />
+      <Route path="/campaigns" element={<ProtectedLayout><Campaigns /></ProtectedLayout>} />
+      <Route path="/automations" element={<ProtectedLayout><Automations /></ProtectedLayout>} />
+      <Route path="/analytics" element={<ProtectedLayout><Analytics /></ProtectedLayout>} />
+
+      {/* Fallback Catch-All: Anything else redirects home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }

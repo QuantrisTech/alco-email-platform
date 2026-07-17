@@ -2,6 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Montserrat', sans-serif;
+:root {
+  color-scheme: light;
+  --background: oklch(0.982 0.008 95);
+  --foreground: oklch(0.21 0.04 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.04 265);
+  --primary: oklch(0.26 0.07 264);
+  --primary-foreground: oklch(0.985 0.005 95);
+  --secondary: oklch(0.96 0.01 95);
+  --secondary-foreground: oklch(0.26 0.07 264);
+  --muted: oklch(0.96 0.008 95);
+  --muted-foreground: oklch(0.52 0.02 265);
+  --accent: oklch(0.8 0.14 82);
+  --accent-foreground: oklch(0.26 0.07 264);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.62 0.15 150);
+  --success-foreground: oklch(0.985 0.005 95);
+  --border: oklch(0.9 0.01 95);
+  --input: oklch(0.9 0.01 95);
+  --ring: oklch(0.8 0.14 82);
+  --chart-1: oklch(0.26 0.07 264);
+  --chart-2: oklch(0.8 0.14 82);
+  --chart-3: oklch(0.62 0.15 150);
+  --chart-4: oklch(0.55 0.1 245);
+  --chart-5: oklch(0.7 0.11 40);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.24 0.06 264);
+  --sidebar-foreground: oklch(0.85 0.02 260);
+  --sidebar-primary: oklch(0.8 0.14 82);
+  --sidebar-primary-foreground: oklch(0.24 0.06 264);
+  --sidebar-accent: oklch(0.3 0.06 264);
+  --sidebar-accent-foreground: oklch(0.985 0.005 95);
+  --sidebar-border: oklch(0.32 0.05 264);
+  --sidebar-ring: oklch(0.8 0.14 82);
 }
+
+body { background: var(--background); color: var(--foreground); }

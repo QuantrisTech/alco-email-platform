@@ -1,43 +1,171 @@
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Send, Zap, BarChart3 } from 'lucide-react'
+import { useState, useEffect } from "react"
+import { NavLink, useLocation, useNavigate } from "react-router-dom"
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
+  Send,
+  Zap,
+  BarChart3,
+  LogOut,
+  Settings,
+  Mail,
+} from "lucide-react"
+import { cn } from "../lib/utils"
 
-const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/contacts', label: 'Contacts', icon: Users },
-  { to: '/templates', label: 'Templates', icon: FileText },
-  { to: '/campaigns', label: 'Campaigns', icon: Send },
-  { to: '/automations', label: 'Automations', icon: Zap },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+
+const nav = [
+  { section: "Overview", items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard }] },
+  { section: "Audience", items: [{ href: "/contacts", label: "Contacts", icon: Users }] },
+  {
+    section: "Messaging",
+    items: [
+      { href: "/templates", label: "Templates", icon: FileText },
+      { href: "/campaigns", label: "Campaigns", icon: Send },
+      { href: "/automations", label: "Automations", icon: Zap },
+    ],
+  },
+  { section: "Insights", items: [{ href: "/analytics", label: "Analytics", icon: BarChart3 }] },
 ]
 
-export default function Sidebar() {
+export function Sidebar() {
+  const pathname = useLocation().pathname
+  const navigate = useNavigate()
+  
+  const [user, setUser] = useState(null)
+
+  // Fetch the logged-in user's profile dynamically
+  useEffect(() => {
+    async function fetchUserProfile() {
+      const token = localStorage.getItem("access_token")
+      if (!token) return
+
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          setUser(data)
+        }
+      } catch (err) {
+        console.error("Failed to load user profile:", err)
+      }
+    }
+
+    fetchUserProfile()
+  }, [])
+
+  // Helper to extract initials (e.g., "Ayesha Khan" -> "AK")
+  const getInitials = (name) => {
+    if (!name) return "??"
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token")
+    navigate("/login")
+  }
+
   return (
-    <aside className="w-60 shrink-0 bg-navy min-h-screen flex flex-col">
-      <div className="px-6 py-6 border-b border-white/10">
-        <span className="text-white font-semibold text-lg tracking-tight">
-          AL<span className="text-gold">&</span>CO
-        </span>
-        <p className="text-white/50 text-xs mt-0.5">Email Automation</p>
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-sidebar text-sidebar-foreground lg:flex">
+      {/* Brand */}
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-6 py-5">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
+          <Mail className="size-5" />
+        </div>
+        <div className="leading-tight">
+          <p className="font-display text-lg font-extrabold tracking-tight text-white">
+            AL<span className="text-sidebar-primary">&</span>CO
+          </p>
+          <p className="text-xs text-sidebar-foreground/70">Email Automation</p>
+        </div>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {links.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors border-l-2 ${
-                isActive
-                  ? 'bg-white/5 text-white border-gold'
-                  : 'text-white/60 border-transparent hover:bg-white/5 hover:text-white'
-              }`
-            }
-          >
-            <Icon size={18} />
-            {label}
-          </NavLink>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-5">
+        {nav.map((group) => (
+          <div key={group.section} className="mb-5">
+            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+              {group.section}
+            </p>
+            <ul className="flex flex-col gap-1">
+              {group.items.map((item) => {
+                const active =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+                const Icon = item.icon
+                return (
+                  <li key={item.href}>
+                    <NavLink
+                      to={item.href}
+                      className={cn(
+                        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-sidebar-accent text-white"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-white",
+                      )}
+                    >
+                      {active && (
+                        <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-sidebar-primary" />
+                      )}
+                      <Icon
+                        className={cn(
+                          "size-[18px] shrink-0 transition-colors",
+                          active
+                            ? "text-sidebar-primary"
+                            : "text-sidebar-foreground/60 group-hover:text-white",
+                        )}
+                      />
+                      {item.label}
+                    </NavLink>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         ))}
       </nav>
+
+      {/* Footer / user */}
+      <div className="border-t border-sidebar-border p-3">
+        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+          <div className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold text-white">
+            {user ? getInitials(user.name || user.email) : "..."}
+          </div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-sm font-medium text-white">
+              {user ? (user.name || "User") : "Loading..."}
+            </p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              {user ? user.email : "Connecting..."}
+            </p>
+          </div>
+          <button 
+            onClick={() => navigate("/settings")} 
+            className="rounded hover:bg-sidebar-accent/60 transition-colors p-1"
+            title="Settings"
+          >
+            <Settings className="size-4 text-sidebar-foreground/60 hover:text-white transition-colors" />
+          </button>
+        </div>
+        <button 
+          onClick={handleLogout}
+          className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/60 hover:text-white"
+        >
+          <LogOut className="size-[18px]" />
+          Log out
+        </button>
+      </div>
     </aside>
   )
 }
