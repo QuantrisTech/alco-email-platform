@@ -95,7 +95,18 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: Optional[str] = None
+    role: Optional[str] = "editor"
 
+
+class UserOut(BaseModel):
+    id: str
+    email: str
+    name: Optional[str] = None
+    role: str
 
 # ---------- Helper ----------
 

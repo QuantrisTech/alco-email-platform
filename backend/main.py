@@ -7,8 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import connect_db
 from routers import auth
 from services.scheduler import start_scheduler
+from routers.contacts import router as contacts_router
+from routers.templates import router as templates_router
+from routers.campaigns import router as campaigns_router
+from routers.automations import router as automations_router
+
 
 app = FastAPI(title="AL&CO Email Automation Platform")
+
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,7 +46,8 @@ def health():
 
 app.include_router(auth.router)
 # Registered as each feature is built and confirmed:
-# app.include_router(contacts.router)
-# app.include_router(templates.router)
-# app.include_router(campaigns.router)
-# app.include_router(automations.router)
+
+app.include_router(contacts_router)
+app.include_router(templates_router)
+app.include_router(campaigns_router)
+app.include_router(automations_router)

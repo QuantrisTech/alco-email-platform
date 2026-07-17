@@ -105,3 +105,15 @@ class Automation(me.Document):
     created_at = me.DateTimeField(default=datetime.utcnow)
 
     meta = {"collection": "automations"}
+
+class User(me.Document):
+    email = me.EmailField(required=True, unique=True)
+    password_hash = me.StringField(required=True)
+    name = me.StringField()
+    role = me.StringField(choices=("admin", "editor"), default="editor")
+    created_at = me.DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "collection": "users",
+        "indexes": ["email"],
+    }

@@ -5,7 +5,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-from schemas import LoginRequest, TokenResponse
+from schemas import LoginRequest, TokenResponse, RegisterRequest, UserOut
+from models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -15,27 +16,6 @@ JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", 480))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-# Team login store — replace with a proper `users` table before adding a
-# second team member; a single shared credential has no audit trail for
-# who actually sent a campaign.
-#
-# ADMIN_PASSWORD is a SEPARATE credential from JWT_SECRET, on purpose.
-# JWT_SECRET is a signing key: arbitrary length, never typed by a human,
-# never passed to bcrypt. ADMIN_PASSWORD is an actual login password:
-# bounded length, meant to be typed. Hashing JWT_SECRET as a password was
-# the bug that crashed this file — bcrypt hard-caps input at 72 bytes and
-# a properly long signing secret blows past that. Don't reintroduce this
-# by pointing ADMIN_PASSWORD back at JWT_SECRET.
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-if not ADMIN_PASSWORD:
-    raise RuntimeError("ADMIN_PASSWORD is not set — check your .env file")
-if len(ADMIN_PASSWORD.encode("utf-8")) > 72:
-    raise RuntimeError("ADMIN_PASSWORD exceeds bcrypt's 72-byte limit — use a shorter password")
-
-_FAKE_USER_DB = {
-    os.getenv("SMTP_EMAIL", "admin@alco.com"): pwd_context.hash(ADMIN_PASSWORD)
-}
 
 
 def create_access_token(subject: str) -> str:
@@ -56,7 +36,26 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
 
 @router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest):
-    hashed = _FAKE_USER_DB.get(req.email)
-    if not hashed or not pwd_context.verify(req.password, hashed):
+    user = User.objects(email=req.email).first()
+    if not user or not pwd_context.verify(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    return TokenResponse(access_token=create_access_token(req.email))
+    return TokenResponse(access_token=create_access_token(user.email))
+
+
+@router.post("/register", response_model=UserOut, status_code=201)
+def register(req: RegisterRequest, _admin: str = Depends(get_current_user)):
+    # Only an already-authenticated user can create new users.
+    # This prevents open self-signup on an internal tool.
+    if User.objects(email=req.email).first():
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+    if len(req.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=422, detail="Password exceeds 72-byte limit")
+
+    user = User(
+        email=req.email,
+        password_hash=pwd_context.hash(req.password),
+        name=req.name,
+        role=req.role or "editor",
+    ).save()
+
+    return UserOut(id=str(user.id), email=user.email, name=user.name, role=user.role)
