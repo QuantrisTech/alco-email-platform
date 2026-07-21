@@ -120,6 +120,30 @@ export default function Campaigns() {
     }
   }
 
+  const [sendingId, setSendingId] = useState(null);
+
+const handleSend = async (c) => {
+  if (!confirm(`Send "${c.name}" now? This will email real recipients.`)) return;
+  setSendingId(c.id);
+  setError("");
+  try {
+    const res = await fetch(`${API_URL}/campaigns/${c.id}/send`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Send failed");
+
+    alert(`Sent: ${data.sent}, Failed: ${data.failed}, Total: ${data.total_recipients}`);
+    fetchAll();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setSendingId(null);
+  }
+};
+
+
   const handleDelete = async (c) => {
     if (!confirm(`Delete campaign "${c.name}"? This can't be undone.`)) return
     try {
@@ -234,6 +258,16 @@ export default function Campaigns() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+                          {(c.status === "draft" || c.status === "scheduled") && (
+                            <button
+                              onClick={() => handleSend(c)}
+                              disabled={sendingId === c.id}
+                              aria-label={`Send ${c.name}`}
+                              className="flex size-8 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                            >
+                              <Send className="size-4" />
+                            </button>
+                          )}
                           {(c.status === "draft" || c.status === "scheduled") && (
                             <button
                               onClick={() => openEdit(c)}

@@ -1,10 +1,31 @@
 import { useState, useRef, useEffect } from "react"
-import { Bell } from "lucide-react"
+import { Bell, CheckCircle2, XCircle, Zap } from "lucide-react"
+
+function timeAgo(dateString) {
+  const seconds = Math.floor((new Date() - new Date(dateString)) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+const NOTIF_STYLES = {
+  campaign_sent: { icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+  automation_fired: { icon: Zap, color: "text-success", bg: "bg-success/10" },
+  campaign_failed: { icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+  automation_failed: { icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+}
+
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 
 // PageShell wraps each page: renders the sticky top bar + main content area.
 // The Sidebar is rendered once in App.jsx, so it is NOT included here.
 export function PageShell({ title, description, actions, children }) {
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const notifRef = useRef(null)
 
   // Close the dropdown when clicking outside it
@@ -18,10 +39,18 @@ export function PageShell({ title, description, actions, children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // Real notifications will be fetched from a backend endpoint once one
-  // exists (e.g. GET /notifications). Empty for now — deliberately not
-  // faking data here.
-  const notifications = []
+  // Fetch real notifications each time the dropdown opens
+  useEffect(() => {
+    const token = localStorage.getItem("access_token")
+    if (!token) return
+
+    fetch(`${API_URL}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => setNotifications(data.items || []))
+      .catch(() => {})
+  }, [notifOpen])
 
   return (
     <>
@@ -63,13 +92,28 @@ export function PageShell({ title, description, actions, children }) {
                     </p>
                   </div>
                 ) : (
-                  <ul className="max-h-80 overflow-y-auto">
-                    {notifications.map((n) => (
-                      <li key={n.id} className="px-4 py-3 border-b border-border last:border-0 text-sm">
-                        {n.message}
-                      </li>
-                    ))}
-                  </ul>
+                  <ul className="max-h-96 overflow-y-auto">
+  {notifications.map((n) => {
+    const style = NOTIF_STYLES[n.type] || { icon: Bell, color: "text-muted-foreground", bg: "bg-muted" }
+    const Icon = style.icon
+    return (
+      <li
+        key={n.id}
+        className={`flex gap-3 px-4 py-3 border-b border-border last:border-0 transition-colors ${!n.read ? "bg-primary/5" : ""}`}
+      >
+        <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${style.bg} ${style.color}`}>
+          <Icon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground leading-snug">{n.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1">{timeAgo(n.created_at)}</p>
+        </div>
+        {!n.read && <span className="size-2 rounded-full bg-primary shrink-0 mt-1.5" />}
+      </li>
+    )
+  })}
+</ul>
                 )}
               </div>
             )}

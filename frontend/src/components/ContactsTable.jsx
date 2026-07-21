@@ -34,7 +34,7 @@ function avatarColorClass(name) {
   return AVATAR_COLORS[idx];
 }
 
-export function ContactsTable({ contacts = [], loading, search, setSearch, onEdit, onDelete }) {
+export function ContactsTable({ contacts = [], loading, search, setSearch, onEdit, onDelete, page, totalPages, onPageChange }) {
   const [filter, setFilter] = useState("all")
   const [selected, setSelected] = useState([])
 
@@ -173,8 +173,8 @@ export function ContactsTable({ contacts = [], loading, search, setSearch, onEdi
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{c.batch ?? "—"}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{c.course ?? "—"}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{c.batch ?? "Not enrolled"}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{c.course ?? "Not enrolled"}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
                     </td>
@@ -206,21 +206,27 @@ export function ContactsTable({ contacts = [], loading, search, setSearch, onEdi
 
       {/* Footer / pagination */}
       <div className="flex items-center justify-between border-t border-border px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{rows.length}</span> dynamic contacts
-        </p>
-        <div className="flex items-center gap-1">
-          <button
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-            disabled
-          >
-            Previous
-          </button>
-          <button className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted">
-            Next <ChevronDown className="size-3.5 -rotate-90" />
-          </button>
-        </div>
-      </div>
+  <p className="text-sm text-muted-foreground">
+    Page <span className="font-medium text-foreground">{page}</span> of{" "}
+    <span className="font-medium text-foreground">{totalPages}</span>
+  </p>
+  <div className="flex items-center gap-1">
+    <button
+      onClick={() => onPageChange(page - 1)}
+      disabled={page <= 1}
+      className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      Previous
+    </button>
+    <button
+      onClick={() => onPageChange(page + 1)}
+      disabled={page >= totalPages}
+      className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      Next
+    </button>
+  </div>
+</div>
     </div>
   )
 }

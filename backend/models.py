@@ -117,3 +117,16 @@ class User(me.Document):
         "collection": "users",
         "indexes": ["email"],
     }
+
+# ---------- Notifications ----------
+class Notification(me.Document):
+    type = me.StringField(
+        choices=("campaign_sent", "campaign_failed", "automation_fired", "automation_failed"),
+        required=True,
+    )
+    title = me.StringField(required=True)
+    message = me.StringField(required=True)
+    read = me.BooleanField(default=False)
+    created_at = me.DateTimeField(default=datetime.utcnow)
+
+    meta = {"collection": "notifications", "indexes": ["-created_at", "read"]}

@@ -6,6 +6,7 @@ import { StatCard } from "../components/StatCard";
 import { ContactsTable } from "../components/ContactsTable";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const PAGE_SIZE = 10;
 
 function authHeaders() {
   const token = localStorage.getItem("access_token");
@@ -15,9 +16,9 @@ function authHeaders() {
 export default function Contacts() {
   const navigate = useNavigate();
 
-  // --- MONGO DB ENGINE STATE ---
   const [contacts, setContacts] = useState([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [activeCount, setActiveCount] = useState(0);
   const [unsubCount, setUnsubCount] = useState(0);
   const [search, setSearch] = useState("");
@@ -28,12 +29,11 @@ export default function Contacts() {
   const [form, setForm] = useState({ name: "", email: "", batch: "", course: "", status: "active" });
   const [saving, setSaving] = useState(false);
 
-  // --- MONGO DB FETCH ENGINE ---
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ page: "1", page_size: "100" });
+      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
       if (search) params.set("search", search);
 
       const [listRes, activeRes, unsubRes] = await Promise.all([
@@ -62,13 +62,17 @@ export default function Contacts() {
     } finally {
       setLoading(false);
     }
-  }, [search, navigate]);
+  }, [search, page, navigate]);
 
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
 
-  // --- MODAL & DATA SAVE ENGINE ---
+  // Reset to page 1 whenever the search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const openCreate = () => {
     setEditing(null);
     setForm({ name: "", email: "", batch: "", course: "", status: "active" });
@@ -125,8 +129,8 @@ export default function Contacts() {
     }
   };
 
-  // --- STAT CARD ENGAGEMENT CALCULATION ---
   const unsubRate = total > 0 ? ((unsubCount / total) * 100).toFixed(1) : "0.0";
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <PageShell
@@ -146,48 +150,30 @@ export default function Contacts() {
         </div>
       }
     >
-      {/* ERROR FEEDBACK BAR */}
       {error && (
         <div className="mb-6 text-sm rounded-lg px-4 py-3 border text-destructive bg-destructive/10 border-destructive/20">
           {error}
         </div>
       )}
 
-      {/* DYNAMIC STATS */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard 
-          label="Total Contacts" 
-          value={total.toLocaleString()} 
-          sub="across all batches" 
-          icon={Users} 
-        />
-        <StatCard 
-          label="Active" 
-          value={activeCount.toLocaleString()} 
-          sub="subscribed & engaged" 
-          icon={UserCheck} 
-          tone="green" 
-        />
-        <StatCard 
-          label="Unsubscribed" 
-          value={unsubCount.toLocaleString()} 
-          sub={`${unsubRate}% of total`} 
-          icon={UserMinus} 
-          tone="gold" 
-        />
+        <StatCard label="Total Contacts" value={total.toLocaleString()} sub="across all batches" icon={Users} />
+        <StatCard label="Active" value={activeCount.toLocaleString()} sub="subscribed & engaged" icon={UserCheck} tone="green" />
+        <StatCard label="Unsubscribed" value={unsubCount.toLocaleString()} sub={`${unsubRate}% of total`} icon={UserMinus} tone="gold" />
       </div>
 
-      {/* CONTACTS LIST TABLE */}
-      <ContactsTable 
-        contacts={contacts} 
+      <ContactsTable
+        contacts={contacts}
         loading={loading}
         search={search}
         setSearch={setSearch}
         onEdit={openEdit}
         onDelete={handleDelete}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
       />
 
-      {/* CREATE / EDIT MODAL OVERLAY */}
       {modalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-card text-card-foreground border border-border rounded-xl w-full max-w-md p-6 shadow-xl relative animate-in fade-in-50 duration-200">

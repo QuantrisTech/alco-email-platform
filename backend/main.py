@@ -11,7 +11,8 @@ from routers.contacts import router as contacts_router
 from routers.templates import router as templates_router
 from routers.campaigns import router as campaigns_router
 from routers.automations import router as automations_router
-
+from routers.unsubscribe import router as unsubscribe_router
+from routers.notifications import router as notifications_router
 
 app = FastAPI(title="AL&CO Email Automation Platform")
 
@@ -51,3 +52,5 @@ app.include_router(contacts_router)
 app.include_router(templates_router)
 app.include_router(campaigns_router)
 app.include_router(automations_router)
+app.include_router(unsubscribe_router)
+app.include_router(notifications_router)

@@ -17,33 +17,33 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  
-  // Real live data states
+
   const [userName, setUserName] = useState("User")
   const [recentCampaigns, setRecentCampaigns] = useState([])
   const [timelineData, setTimelineData] = useState([])
   const [liveStats, setLiveStats] = useState({
     totalContacts: 0,
     activeContacts: 0,
-    newThisMonth: 0, // Tracked dynamic state
+    newThisMonth: 0,
     templates: 0,
     campaigns: 0,
     automations: 0,
     openRate: 0,
     clickRate: 0,
-    deliveredRate: 100,
+    deliveredRate: 0,
   })
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
-      const [userRes, campaignsRes, contactsRes, templatesRes, automationsRes] = await Promise.all([
-        fetch(`${API_URL}/users/me`, { headers: authHeaders() }).catch(() => null),
+      const [userRes, campaignsRes, contactsRes, templatesRes, automationsRes, deliveryRes] = await Promise.all([
+        fetch(`${API_URL}/auth/me`, { headers: authHeaders() }).catch(() => null),
         fetch(`${API_URL}/campaigns`, { headers: authHeaders() }),
         fetch(`${API_URL}/contacts`, { headers: authHeaders() }),
         fetch(`${API_URL}/templates`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ total: 0 }) })),
-        fetch(`${API_URL}/automations`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ total: 0 }) }))
+        fetch(`${API_URL}/automations`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ total: 0 }) })),
+        fetch(`${API_URL}/campaigns/stats/delivery`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ delivered_rate: 0 }) })),
       ])
 
       if (campaignsRes.status === 401 || contactsRes.status === 401) {
@@ -61,23 +61,22 @@ export default function Dashboard() {
       const contactsData = await contactsRes.json()
       const templatesData = templatesRes.ok ? await templatesRes.json() : { items: [] }
       const automationsData = automationsRes.ok ? await automationsRes.json() : { items: [] }
+      const deliveryData = deliveryRes.ok ? await deliveryRes.json() : { delivered_rate: 0 }
 
       const campaignItems = campaignsData.items || []
       const templateCount = templatesData.items?.length || templatesData.total || 0
       const automationCount = automationsData.items?.length || automationsData.total || 0
 
-      // DYNAMIC CONTACT COUNTER & DATE FILTER
       let totalContactsCount = 0
       let activeContactsCount = 0
       let newContactsThisMonth = 0
 
-      const currentItemsArray = Array.isArray(contactsData) 
-        ? contactsData 
-        : Array.isArray(contactsData.items) 
-          ? contactsData.items 
+      const currentItemsArray = Array.isArray(contactsData)
+        ? contactsData
+        : Array.isArray(contactsData.items)
+          ? contactsData.items
           : []
 
-      // Extract system target timestamps to match current month context
       const now = new Date()
       const currentMonth = now.getMonth()
       const currentYear = now.getFullYear()
@@ -90,9 +89,7 @@ export default function Dashboard() {
         activeContactsCount = currentItemsArray.filter(c => c.status !== "unsubscribed").length
       }
 
-      // Calculate contacts arriving in the current month space
       currentItemsArray.forEach(contact => {
-        // Adjusts safely to whichever timestamp naming standard your backend uses ('created_at' or 'date_added')
         const rawDate = contact.created_at || contact.date_added
         if (rawDate) {
           const createdDate = new Date(rawDate)
@@ -102,7 +99,6 @@ export default function Dashboard() {
         }
       })
 
-      // Filter down to campaigns that have run or are running
       const processedCampaigns = campaignItems.filter(
         c => c.status === "sent" || (c.openRate !== null && c.openRate !== undefined)
       )
@@ -130,7 +126,7 @@ export default function Dashboard() {
         automations: automationCount,
         openRate: Math.round(finalOpenRate),
         clickRate: Math.round(finalClickRate),
-        deliveredRate: totalSent > 0 ? 99 : 0,
+        deliveredRate: deliveryData.delivered_rate ?? 0,
       })
 
       const structuralRecent = campaignItems
@@ -161,8 +157,8 @@ export default function Dashboard() {
 
       const formattedChartData = Object.values(monthlyMap)
       setTimelineData(
-        formattedChartData.length > 0 
-          ? formattedChartData 
+        formattedChartData.length > 0
+          ? formattedChartData
           : [{ name: "No Data", sent: 0, opened: 0 }]
       )
 
@@ -198,17 +194,16 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/* Updated trend property using live dynamic calculations */}
-        <StatCard 
-          label="Contacts" 
-          value={loading ? "..." : liveStats.totalContacts.toLocaleString()} 
-          sub={`${liveStats.activeContacts.toLocaleString()} active`} 
-          icon={Users} 
-          href="/contacts" 
-          trend={{ 
-            value: `+${liveStats.newThisMonth} this month`, 
-            up: liveStats.newThisMonth >= 0 
-          }} 
+        <StatCard
+          label="Contacts"
+          value={loading ? "..." : liveStats.totalContacts.toLocaleString()}
+          sub={`${liveStats.activeContacts.toLocaleString()} active`}
+          icon={Users}
+          href="/contacts"
+          trend={{
+            value: `+${liveStats.newThisMonth} this month`,
+            up: liveStats.newThisMonth >= 0
+          }}
         />
         <StatCard label="Templates" value={loading ? "..." : liveStats.templates} sub="ready to use" icon={FileText} href="/templates" tone="gold" />
         <StatCard label="Campaigns" value={loading ? "..." : liveStats.campaigns} sub="Historical execution" icon={Send} href="/campaigns" />
@@ -289,7 +284,6 @@ export default function Dashboard() {
   )
 }
 
-// Keep your Metric sub-component intact down here
 function Metric({ label, value }) {
   return (
     <div>
