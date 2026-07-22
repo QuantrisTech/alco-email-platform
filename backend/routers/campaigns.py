@@ -127,6 +127,18 @@ class DeliveryStatsOut(BaseModel):
     total_skipped: int
     delivered_rate: float
 
+@router.get("/stats/bounces", response_model=dict)
+def get_bounce_stats(_user: str = Depends(get_current_user)):
+    total_sent_attempts = EmailLog.objects(status__in=["sent", "failed"]).count()
+    hard_bounces = EmailLog.objects(is_hard_bounce=True).count()
+    bounce_rate = round((hard_bounces / total_sent_attempts) * 100, 2) if total_sent_attempts > 0 else 0.0
+
+    return {
+        "total_sent_attempts": total_sent_attempts,
+        "hard_bounces": hard_bounces,
+        "bounce_rate": bounce_rate,
+        "warning": bounce_rate > 5.0,  # Gmail/ISPs flag sender reputation above ~5%
+    }
 
 @router.get("/stats/delivery", response_model=DeliveryStatsOut)
 def get_delivery_stats(_user: str = Depends(get_current_user)):

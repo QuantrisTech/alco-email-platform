@@ -125,12 +125,20 @@ def _open_smtp_connection():
         )
     return server
 
+def wrap_links_for_tracking(html: str, log_id: str) -> str:
+    """Rewrites <a href="..."> links to route through the click-tracking
+    redirect, preserving the original destination as a query param."""
+    import re
+    def replace(match):
+        original_url = match.group(1)
+        tracked = f"{PLATFORM_URL}/track/click/{log_id}?url={original_url}"
+        return f'href="{tracked}"'
+    return re.sub(r'href="([^"]+)"', replace, html)
+
+
 
 def _send_via_connection(server, to_email: str, subject: str, body: str,
                           campaign_id: str = None, contact_id: str = None) -> bool:
-    """Sends one email using an already-open, already-authenticated
-    SMTP connection. Does not open or close the connection itself —
-    the caller (send_bulk_emails or send_email) owns that lifecycle."""
     if not _check_daily_limit():
         EmailLog(
             campaign_id=campaign_id, contact_id=contact_id, contact_email=to_email,
@@ -138,25 +146,37 @@ def _send_via_connection(server, to_email: str, subject: str, body: str,
         ).save()
         return False
 
+    # Log first (before sending) so we have a real log_id to embed in the
+    # tracking pixel and click links.
+    log = EmailLog(
+        campaign_id=campaign_id, contact_id=contact_id, contact_email=to_email,
+        status="sent",
+    ).save()
+
+    tracking_pixel = f'<img src="{PLATFORM_URL}/track/open/{log.id}" width="1" height="1" style="display:none" />'
     footer = f"\n\n---\nUnsubscribe: {build_unsubscribe_link(to_email, campaign_id or '0')}"
-    msg = MIMEText(body + footer)
+    html_body = f"<html><body>{body.replace(chr(10), '<br>')}{tracking_pixel}<br>{footer}</body></html>"
+    msg = MIMEText(html_body, "html")
     msg["Subject"] = subject
     msg["From"] = SMTP_EMAIL
     msg["To"] = to_email
+    html_body = wrap_links_for_tracking(html_body, str(log.id))
+    msg = MIMEText(html_body, "html")
 
     try:
         server.sendmail(SMTP_EMAIL, [to_email], msg.as_string())
         _increment_send_count()
-        EmailLog(
-            campaign_id=campaign_id, contact_id=contact_id, contact_email=to_email,
-            status="sent",
-        ).save()
         return True
+    except smtplib.SMTPRecipientsRefused as e:
+        log.status = "failed"
+        log.error = str(e)
+        log.is_hard_bounce = True
+        log.save()
+        return False
     except Exception as e:
-        EmailLog(
-            campaign_id=campaign_id, contact_id=contact_id, contact_email=to_email,
-            status="failed", error=str(e),
-        ).save()
+        log.status = "failed"
+        log.error = str(e)
+        log.save()
         return False
 
 
@@ -240,30 +260,5 @@ def send_bulk_emails(recipients: list, render_fn, campaign_id: str = None) -> di
         server.quit()
 
     return summary
-"""
-    try:
-        for r in recipients:
-            if not _check_daily_limit():
-                EmailLog(
-                    campaign_id=campaign_id, contact_id=r.get("contact_id"),
-                    contact_email=r["email"], status="failed",
-                    error="Daily SMTP send limit reached — queue for tomorrow",
-                ).save()
-                summary["skipped"] += 1
-                continue
 
-            ok = _send_via_connection(
-                server, r["email"], subject, body,
-                campaign_id=campaign_id, contact_id=r.get("contact_id"),
-            )
-            if ok:
-                summary["sent"] += 1
-            else:
-                summary["failed"] += 1
 
-            time.sleep(SEND_DELAY_SECONDS)
-    finally:
-        server.quit()
-
-    return summary
-    """

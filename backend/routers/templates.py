@@ -102,3 +102,15 @@ def _get_or_404(template_id: str) -> Template:
     if doc is None:
         raise HTTPException(status_code=404, detail="Template not found")
     return doc
+
+@router.post("/{template_id}/duplicate", response_model=TemplateOut, status_code=201)
+def duplicate_template(template_id: str, _user: str = Depends(get_current_user)):
+    original = _get_or_404(template_id)
+    copy = Template(
+        name=f"{original.name} (Copy)",
+        subject=original.subject,
+        body=original.body,
+        variables=original.variables,
+    )
+    copy.save()
+    return TemplateOut.from_doc(copy)

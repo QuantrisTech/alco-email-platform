@@ -28,6 +28,7 @@ export default function Contacts() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", email: "", batch: "", course: "", status: "active" });
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
@@ -35,6 +36,7 @@ export default function Contacts() {
     try {
       const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
       if (search) params.set("search", search);
+      if (statusFilter !== "all") params.set("status", statusFilter);
 
       const [listRes, activeRes, unsubRes] = await Promise.all([
         fetch(`${API_URL}/contacts?${params}`, { headers: authHeaders() }),
@@ -62,7 +64,7 @@ export default function Contacts() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, navigate]);
+ }, [search, page, statusFilter, navigate]);
 
   useEffect(() => {
     fetchContacts();
@@ -72,6 +74,10 @@ export default function Contacts() {
   useEffect(() => {
     setPage(1);
   }, [search]);
+
+  useEffect(() => {
+  setPage(1);
+}, [search, statusFilter]);
 
   const openCreate = () => {
     setEditing(null);
@@ -129,6 +135,34 @@ export default function Contacts() {
     }
   };
 
+  const handleBulkDelete = async (ids) => {
+  try {
+    await Promise.all(
+      ids.map((id) => fetch(`${API_URL}/contacts/${id}`, { method: "DELETE", headers: authHeaders() }))
+    );
+    fetchContacts();
+  } catch (err) {
+    setError("Some contacts could not be deleted.");
+  }
+};
+
+const handleBulkUnsubscribe = async (ids) => {
+  try {
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`${API_URL}/contacts/${id}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ status: "unsubscribed" }),
+        })
+      )
+    );
+    fetchContacts();
+  } catch (err) {
+    setError("Some contacts could not be unsubscribed.");
+  }
+};
+
   const unsubRate = total > 0 ? ((unsubCount / total) * 100).toFixed(1) : "0.0";
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -163,16 +197,20 @@ export default function Contacts() {
       </div>
 
       <ContactsTable
-        contacts={contacts}
-        loading={loading}
-        search={search}
-        setSearch={setSearch}
-        onEdit={openEdit}
-        onDelete={handleDelete}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-      />
+      contacts={contacts}
+      loading={loading}
+      search={search}
+      setSearch={setSearch}
+      onEdit={openEdit}
+      onDelete={handleDelete}
+      page={page}
+      totalPages={totalPages}
+      onPageChange={setPage}
+      statusFilter={statusFilter}
+      onStatusFilterChange={setStatusFilter}
+      onBulkDelete={handleBulkDelete}
+      onBulkUnsubscribe={handleBulkUnsubscribe}
+    />
 
       {modalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 px-4">

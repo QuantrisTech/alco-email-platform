@@ -34,21 +34,13 @@ function avatarColorClass(name) {
   return AVATAR_COLORS[idx];
 }
 
-export function ContactsTable({ contacts = [], loading, search, setSearch, onEdit, onDelete, page, totalPages, onPageChange }) {
-  const [filter, setFilter] = useState("all")
+export function ContactsTable({ contacts = [], loading, search, setSearch, onEdit, onDelete, page, totalPages, onPageChange, statusFilter, onStatusFilterChange, onBulkDelete, onBulkUnsubscribe }) {
   const [selected, setSelected] = useState([])
 
-  const rows = useMemo(() => {
-    return contacts.filter((c) => {
-      if (filter === "all") return true;
-      return c.status === filter;
-    });
-  }, [contacts, filter])
-
-  const allSelected = rows.length > 0 && selected.length === rows.length
+  const allSelected = contacts.length > 0 && selected.length === contacts.length
 
   function toggleAll() {
-    setSelected(allSelected ? [] : rows.map((r) => r.id || r._id))
+    setSelected(allSelected ? [] : contacts.map((c) => c.id || c._id))
   }
   function toggle(id) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -70,35 +62,49 @@ export function ContactsTable({ contacts = [], loading, search, setSearch, onEdi
 
         <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
           {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                filter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+  <button
+    key={f.value}
+    onClick={() => onStatusFilterChange(f.value)}
+    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+      statusFilter === f.value
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:text-foreground"
+    }`}
+  >
+    {f.label}
+  </button>
+))}
         </div>
       </div>
 
       {/* Selection banner */}
       {selected.length > 0 && (
-        <div className="flex items-center justify-between border-b border-border bg-accent/10 px-4 py-2.5">
-          <p className="text-sm font-medium text-foreground">{selected.length} selected</p>
-          <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
-              <Mail className="size-3.5" /> Email
-            </button>
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10">
-              <Trash2 className="size-3.5" /> Delete
-            </button>
-          </div>
-        </div>
-      )}
+  <div className="flex items-center justify-between border-b border-border bg-accent/10 px-4 py-2.5">
+    <p className="text-sm font-medium text-foreground">{selected.length} selected</p>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => {
+          onBulkUnsubscribe(selected)
+          setSelected([])
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+      >
+        <Mail className="size-3.5" /> Unsubscribe
+      </button>
+      <button
+        onClick={() => {
+          if (confirm(`Delete ${selected.length} contact(s)? This can't be undone.`)) {
+            onBulkDelete(selected)
+            setSelected([])
+          }
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+      >
+        <Trash2 className="size-3.5" /> Delete
+      </button>
+    </div>
+  </div>
+)}
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -131,7 +137,7 @@ export function ContactsTable({ contacts = [], loading, search, setSearch, onEdi
                   </div>
                 </td>
               </tr>
-            ) : rows.length === 0 ? (
+            ) : contacts.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-16">
                   <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -144,7 +150,7 @@ export function ContactsTable({ contacts = [], loading, search, setSearch, onEdi
                 </td>
               </tr>
             ) : (
-              rows.map((c) => {
+              contacts.map((c) => {
                 const contactId = c.id || c._id;
                 return (
                   <tr key={contactId} className="group transition-colors hover:bg-muted/40">

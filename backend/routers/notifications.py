@@ -55,3 +55,14 @@ def mark_read(notification_id: str, _user: str = Depends(get_current_user)):
 def mark_all_read(_user: str = Depends(get_current_user)):
     Notification.objects(read=False).update(read=True)
     return None
+
+@router.get("/recent", response_model=NotificationListOut)
+def recent_activity(_user: str = Depends(get_current_user)):
+    """Same data as the main notifications list, capped smaller — used
+    by the Dashboard's Recent Activity widget."""
+    docs = Notification.objects.order_by("-created_at").limit(5)
+    unread_count = Notification.objects(read=False).count()
+    return NotificationListOut(
+        unread_count=unread_count,
+        items=[NotificationOut.from_doc(d) for d in docs],
+    )

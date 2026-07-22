@@ -6,6 +6,16 @@ import { StatCard } from "../components/StatCard"
 import { StatusBadge } from "../components/StatusBadge"
 import { PerformanceChart } from "../components/PerformanceChart"
 
+function timeAgo(dateString) {
+  const seconds = Math.floor((new Date() - new Date(dateString)) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 
 function authHeaders() {
@@ -17,7 +27,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-
+  const [recentActivity, setRecentActivity] = useState([])
   const [userName, setUserName] = useState("User")
   const [recentCampaigns, setRecentCampaigns] = useState([])
   const [timelineData, setTimelineData] = useState([])
@@ -37,13 +47,14 @@ export default function Dashboard() {
     setLoading(true)
     setError("")
     try {
-      const [userRes, campaignsRes, contactsRes, templatesRes, automationsRes, deliveryRes] = await Promise.all([
+      const [userRes, campaignsRes, contactsRes, templatesRes, automationsRes, deliveryRes, activityRes] = await Promise.all([
         fetch(`${API_URL}/auth/me`, { headers: authHeaders() }).catch(() => null),
         fetch(`${API_URL}/campaigns`, { headers: authHeaders() }),
         fetch(`${API_URL}/contacts`, { headers: authHeaders() }),
         fetch(`${API_URL}/templates`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ total: 0 }) })),
         fetch(`${API_URL}/automations`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ total: 0 }) })),
         fetch(`${API_URL}/campaigns/stats/delivery`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ delivered_rate: 0 }) })),
+        fetch(`${API_URL}/notifications/recent`, { headers: authHeaders() }).catch(() => ({ ok: true, json: () => ({ items: [] }) })),
       ])
 
       if (campaignsRes.status === 401 || contactsRes.status === 401) {
@@ -62,6 +73,8 @@ export default function Dashboard() {
       const templatesData = templatesRes.ok ? await templatesRes.json() : { items: [] }
       const automationsData = automationsRes.ok ? await automationsRes.json() : { items: [] }
       const deliveryData = deliveryRes.ok ? await deliveryRes.json() : { delivered_rate: 0 }
+      const activityData = activityRes.ok ? await activityRes.json() : { items: [] }
+      setRecentActivity(activityData.items || [])
 
       const campaignItems = campaignsData.items || []
       const templateCount = templatesData.items?.length || templatesData.total || 0
@@ -275,6 +288,25 @@ export default function Dashboard() {
                   </div>
                   <StatusBadge status={c.status} />
                 </div>
+                <section className="mt-6 rounded-2xl border border-border bg-card">
+  <div className="px-5 py-4 border-b border-border">
+    <h2 className="font-display text-base font-bold text-foreground">Recent Activity</h2>
+  </div>
+  <ul className="divide-y divide-border">
+    {recentActivity.length === 0 ? (
+      <li className="px-5 py-6 text-center text-sm text-muted-foreground">
+        Nothing has happened yet.
+      </li>
+    ) : (
+      recentActivity.map((n) => (
+        <li key={n.id} className="px-5 py-3 text-sm">
+          <p className="text-foreground">{n.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{n.message} · {timeAgo(n.created_at)}</p>
+        </li>
+      ))
+    )}
+  </ul>
+</section>
               </li>
             ))
           )}

@@ -83,6 +83,11 @@ class EmailLog(me.Document):
     campaign_id = me.StringField()
     contact_id = me.StringField()
     contact_email = me.StringField(required=True)
+    opened = me.BooleanField(default=False)
+    clicked = me.BooleanField(default=False)
+    is_hard_bounce = me.BooleanField(default=False)
+    automation_id = me.StringField()
+    branch_processed = me.BooleanField(default=False)
     status = me.StringField(
         choices=("sent", "failed", "skipped_unsubscribed"), required=True
     )
@@ -103,6 +108,12 @@ class Automation(me.Document):
     template = me.EmbeddedDocumentField(TemplateSnapshot, required=True)
     is_active = me.BooleanField(default=False)
     created_at = me.DateTimeField(default=datetime.utcnow)
+    {
+  "event": "enrolled",
+  "branch_after_hours": 24,
+  "if_opened_template_id": "...",
+  "if_not_opened_template_id": "..."
+}
 
     meta = {"collection": "automations"}
 
@@ -130,3 +141,11 @@ class Notification(me.Document):
     created_at = me.DateTimeField(default=datetime.utcnow)
 
     meta = {"collection": "notifications", "indexes": ["-created_at", "read"]}
+
+# ---------- Segments ----------
+class Segment(me.Document):
+    name = me.StringField(required=True)
+    rules = me.DictField()  # e.g. {"status": "active", "course": "NLP Practitioner Course"}
+    created_at = me.DateTimeField(default=datetime.utcnow)
+
+    meta = {"collection": "segments"}

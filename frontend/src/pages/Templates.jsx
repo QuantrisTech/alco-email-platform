@@ -1,7 +1,8 @@
+import { Plus, Pencil, Trash2, FileText, Search, X, Copy } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, FileText, Search, X } from "lucide-react";
 import { PageShell } from "../components/Topbar";
+import EmailBlockBuilder from "../components/EmailBlockBuilder";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -106,6 +107,19 @@ export default function Templates() {
     }
   };
 
+  const handleDuplicate = async (t) => {
+  try {
+    const res = await fetch(`${API_URL}/templates/${t.id}/duplicate`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Duplicate failed");
+    fetchTemplates();
+  } catch (err) {
+    setError(err.message);
+  }
+};
+
   return (
     <PageShell
       title="Templates"
@@ -149,13 +163,16 @@ export default function Templates() {
                   <FileText className="size-5" />
                 </div>
                 <div className="flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
-                  <IconButton label={`Edit ${t.name}`} onClick={() => openEdit(t)}>
-                    <Pencil className="size-4" />
-                  </IconButton>
-                  <IconButton label={`Delete ${t.name}`} danger onClick={() => handleDelete(t)}>
-                    <Trash2 className="size-4" />
-                  </IconButton>
-                </div>
+  <IconButton label={`Edit ${t.name}`} onClick={() => openEdit(t)}>
+    <Pencil className="size-4" />
+  </IconButton>
+  <IconButton label={`Duplicate ${t.name}`} onClick={() => handleDuplicate(t)}>
+    <Copy className="size-4" />
+  </IconButton>
+  <IconButton label={`Delete ${t.name}`} danger onClick={() => handleDelete(t)}>
+    <Trash2 className="size-4" />
+  </IconButton>
+</div>
               </div>
 
               <h3 className="mt-4 font-display text-base font-bold text-foreground">{t.name}</h3>
@@ -236,16 +253,12 @@ export default function Templates() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Body</label>
-                <textarea
-                  required
-                  rows={6}
-                  value={form.body}
-                  onChange={(e) => setForm({ ...form, body: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 resize-none"
-                  placeholder="Hi {name}, welcome to..."
-                />
-              </div>
+  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Body</label>
+  <EmailBlockBuilder
+    initialBody={form.body}
+    onChange={(html) => setForm((f) => ({ ...f, body: html }))}
+  />
+</div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                   Variables <span className="font-normal">(comma-separated, e.g. name, course)</span>

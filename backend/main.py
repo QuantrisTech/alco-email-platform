@@ -13,6 +13,11 @@ from routers.campaigns import router as campaigns_router
 from routers.automations import router as automations_router
 from routers.unsubscribe import router as unsubscribe_router
 from routers.notifications import router as notifications_router
+from routers.webhooks import router as webhooks_router
+from routers.search import router as search_router
+from routers.tracking import router as tracking_router
+from routers.segments import router as segments_router
+
 
 app = FastAPI(title="AL&CO Email Automation Platform")
 
@@ -54,3 +59,7 @@ app.include_router(campaigns_router)
 app.include_router(automations_router)
 app.include_router(unsubscribe_router)
 app.include_router(notifications_router)
+app.include_router(webhooks_router)
+app.include_router(search_router)
+app.include_router(tracking_router)
+app.include_router(segments_router)

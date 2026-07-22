@@ -27,12 +27,13 @@ export default function Automations() {
   const [saving, setSaving] = useState(false)
   
   const [form, setForm] = useState({
-    name: "",
-    trigger_type: "manual",
-    trigger_config_value: "",
-    template_id: "",
-    is_active: false,
-  })
+  name: "",
+  trigger_type: "manual",
+  trigger_config_value: "",
+  webhook_event: "new_lead",
+  template_id: "",
+  is_active: false,
+})
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -66,45 +67,46 @@ export default function Automations() {
     fetchAll()
   }, [fetchAll])
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm({ 
-      name: "", 
-      trigger_type: "manual", 
-      trigger_config_value: "", 
-      template_id: templates[0]?.id || "", 
-      is_active: false 
-    })
-    setModalOpen(true)
-  }
+const openCreate = () => {
+  setEditing(null)
+  setForm({ 
+    name: "", 
+    trigger_type: "manual", 
+    trigger_config_value: "", 
+    webhook_event: "new_lead",
+    template_id: templates[0]?.id || "", 
+    is_active: false 
+  })
+  setModalOpen(true)
+}
 
-  const openEdit = (a) => {
-    setEditing(a)
-    let configValue = ""
-    if (a.trigger_type === "schedule" && a.trigger_config?.day_of_month) {
-      configValue = String(a.trigger_config.day_of_month)
-    } else if (a.trigger_config?.inactive_days) {
-      configValue = String(a.trigger_config.inactive_days)
-    }
-    setForm({
-      name: a.name,
-      trigger_type: a.trigger_type,
-      trigger_config_value: configValue,
-      template_id: a.template?.template_id || a.template_id || "",
-      is_active: a.is_active,
-    })
-    setModalOpen(true)
+ const openEdit = (a) => {
+  setEditing(a)
+  let configValue = ""
+  if (a.trigger_type === "schedule" && a.trigger_config?.day_of_month) {
+    configValue = String(a.trigger_config.day_of_month)
   }
+  setForm({
+    name: a.name,
+    trigger_type: a.trigger_type,
+    trigger_config_value: configValue,
+    webhook_event: a.trigger_config?.event || "new_lead",
+    template_id: a.template?.template_id || a.template_id || "",
+    is_active: a.is_active,
+  })
+  setModalOpen(true)
+}
 
   const buildTriggerConfig = () => {
-    if (form.trigger_type === "schedule" && form.trigger_config_value) {
-      return { day_of_month: parseInt(form.trigger_config_value, 10) }
-    }
-    if (form.trigger_type === "new_contact_webhook" && form.trigger_config_value) {
-      return { inactive_days: parseInt(form.trigger_config_value, 10) }
-    }
-    return {}
+  if (form.trigger_type === "schedule" && form.trigger_config_value) {
+    return { day_of_month: parseInt(form.trigger_config_value, 10) }
   }
+  if (form.trigger_type === "new_contact_webhook") {
+    return { event: form.webhook_event }
+  }
+  return {}
+}
+
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -325,20 +327,25 @@ export default function Automations() {
               )}
 
               {form.trigger_type === "new_contact_webhook" && (
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                    Inactive Days <span className="text-muted-foreground font-normal lowercase">(optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.trigger_config_value}
-                    onChange={(e) => setForm({ ...form, trigger_config_value: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
-                    placeholder="7"
-                  />
-                </div>
-              )}
+  <div>
+    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+      Fires On Event
+    </label>
+    <select
+      value={form.webhook_event}
+      onChange={(e) => setForm({ ...form, webhook_event: e.target.value })}
+      className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 text-foreground"
+    >
+      <option value="new_lead">New Lead</option>
+      <option value="contacted">Contacted</option>
+      <option value="qualified">Qualified</option>
+      <option value="interested">Interested</option>
+      <option value="payment_plan">Payment Plan</option>
+      <option value="enrolled">Enrolled</option>
+      <option value="batch_assigned">Batch Assigned</option>
+    </select>
+  </div>
+)}
 
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Dispatch Template</label>

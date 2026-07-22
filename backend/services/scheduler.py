@@ -19,10 +19,16 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from models import Campaign, Automation, Contact
+from models import Campaign, Automation, Contact, EmailLog
 from services.email_sender import send_bulk_emails, render_body, notify
 
 from zoneinfo import ZoneInfo
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from crm_sync import sync_contacts_from_crm
+
+from models import Campaign, Automation, Contact, EmailLog, Template
+
 
 MONGO_URI = os.getenv("MONGO_URI")
 _client = MongoClient(MONGO_URI)
@@ -80,7 +86,23 @@ def schedule_recurring_monthly(automation_id: str, day_of_month: int, send_fn):
     )
 
 
-
+def run_nightly_crm_sync():
+    """Runs crm_sync.py automatically instead of requiring someone to
+    run it by hand. Logs a notification either way so failures are
+    visible instead of silent."""
+    try:
+        sync_contacts_from_crm()
+        notify(
+            "automation_fired",
+            "Nightly CRM sync completed",
+            "Contacts were synced from the CRM automatically.",
+        )
+    except Exception as e:
+        notify(
+            "automation_failed",
+            "Nightly CRM sync failed",
+            f"Error: {str(e)}",
+        )
 
 def check_scheduled_campaigns():
     now = datetime.now(ZoneInfo("Asia/Karachi")).replace(tzinfo=None)
@@ -92,6 +114,61 @@ def check_scheduled_campaigns():
     for campaign in due_campaigns:
         _execute_campaign_send(campaign)
 
+def check_automation_branches():
+    """Runs hourly. For automations with branch_after_hours configured,
+    checks each sent EmailLog once that window has passed and fires the
+    'opened' or 'not opened' follow-up template accordingly — exactly
+    once per log, guarded by branch_processed."""
+    from datetime import datetime, timedelta
+
+    branching_automations = Automation.objects(
+        trigger_type="new_contact_webhook",
+        trigger_config__branch_after_hours__exists=True,
+    )
+
+    for automation in branching_automations:
+        wait_hours = automation.trigger_config.get("branch_after_hours")
+        opened_template_id = automation.trigger_config.get("if_opened_template_id")
+        not_opened_template_id = automation.trigger_config.get("if_not_opened_template_id")
+        if not wait_hours or not (opened_template_id or not_opened_template_id):
+            continue
+
+        cutoff = datetime.utcnow() - timedelta(hours=wait_hours)
+        due_logs = EmailLog.objects(
+            automation_id=str(automation.id),
+            status="sent",
+            branch_processed=False,
+            sent_at__lte=cutoff,
+        )
+
+        for log in due_logs:
+            template_id = opened_template_id if log.opened else not_opened_template_id
+            if not template_id:
+                log.branch_processed = True
+                log.save()
+                continue
+
+            template = Template.objects(id=template_id).first()
+            contact = Contact.objects(email=log.contact_email).first()
+            if template and contact:
+                context = {
+                    "name": contact.name, "email": contact.email,
+                    "batch": contact.batch or "", "course": contact.course or "",
+                }
+                send_bulk_emails(
+                    recipients=[{"email": contact.email, "contact_id": str(contact.id)}],
+                    render_fn=lambda r, t=template, c=context: (
+                        render_body(t.subject, c), render_body(t.body, c)
+                    ),
+                )
+                notify(
+                    "automation_fired",
+                    f"Branch follow-up sent for '{automation.name}'",
+                    f"{'Opened' if log.opened else 'Did not open'} branch → sent to {contact.email}",
+                )
+
+            log.branch_processed = True
+            log.save()
 
 def check_scheduled_automations():
     """Runs periodically. Finds active, schedule-type automations whose
@@ -186,6 +263,13 @@ def _execute_automation_send(automation):
 
     result = send_bulk_emails(recipients=recipients_payload, render_fn=render_for_recipient)
 
+    # Tag the logs just created with this automation's id, so the branch
+    # check later knows which automation to follow up for.
+    from models import EmailLog
+    EmailLog.objects(contact_email__in=[r["email"] for r in recipients_payload], automation_id=None).update(
+    automation_id=str(automation.id)
+)
+
     notify(
         "automation_fired" if result["failed"] == 0 else "automation_failed",
         f"Automation '{automation.name}' fired",
@@ -197,3 +281,5 @@ def _execute_automation_send(automation):
 # everything they reference is defined.
 scheduler.add_job(check_scheduled_campaigns, "interval", minutes=5, id="check_scheduled_campaigns", replace_existing=True)
 scheduler.add_job(check_scheduled_automations, "interval", hours=1, id="check_scheduled_automations", replace_existing=True)
+scheduler.add_job(run_nightly_crm_sync, "cron", hour=2, minute=0, id="nightly_crm_sync", replace_existing=True)
+scheduler.add_job(check_automation_branches, "interval", hours=1, id="check_automation_branches", replace_existing=True)
