@@ -25,7 +25,7 @@ app = FastAPI(title="AL&CO Email Automation Platform")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten to the Vercel frontend origin before production
+    allow_origins=["https://alco-email-platform.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
