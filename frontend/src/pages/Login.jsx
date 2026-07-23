@@ -39,8 +39,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-lightgray font-sans">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="px-8 py-8 text-center bg-navy">
-          <img src="/logo.png" alt="AL&CO" className="h-14 mx-auto mb-2" />
-          <p className="text-xs tracking-wide text-muted">
+          <img src="/logo.png" alt="AL&CO" className="h-20 mx-auto mb-2" />
+          <p className="text-xs tracking-wide text-navy">
             Email Automation Platform
           </p>
         </div>
