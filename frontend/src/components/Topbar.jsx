@@ -92,7 +92,7 @@ useEffect(() => {
 function goToResult(item) {
   setSearchOpen(false)
   setSearchQuery("")
-  if (item.type === "contact") navigate("/contacts")
+  if (item.type === "contact") navigate(`/contacts?edit=${item.id}`)
   else if (item.type === "template") navigate("/templates")
   else if (item.type === "campaign") navigate("/campaigns")
 }

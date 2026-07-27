@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Users, UserCheck, UserMinus, Plus, Upload, X } from "lucide-react";
 import { PageShell } from "../components/Topbar";
 import { StatCard } from "../components/StatCard";
@@ -15,6 +15,7 @@ function authHeaders() {
 
 export default function Contacts() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [contacts, setContacts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -64,20 +65,16 @@ export default function Contacts() {
     } finally {
       setLoading(false);
     }
- }, [search, page, statusFilter, navigate]);
+  }, [search, page, statusFilter, navigate]);
 
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
 
-  // Reset to page 1 whenever the search term changes
+  // Reset to page 1 whenever search or status filter changes
   useEffect(() => {
     setPage(1);
-  }, [search]);
-
-  useEffect(() => {
-  setPage(1);
-}, [search, statusFilter]);
+  }, [search, statusFilter]);
 
   const openCreate = () => {
     setEditing(null);
@@ -96,6 +93,22 @@ export default function Contacts() {
     });
     setModalOpen(true);
   };
+
+  // Handles clicking a contact from global search — fetches that exact
+  // contact directly by ID (regardless of which page it'd normally be
+  // on) and opens the edit modal with their real data.
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId) return;
+
+    fetch(`${API_URL}/contacts/${editId}`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((contact) => {
+        if (contact) openEdit(contact);
+        setSearchParams({});
+      })
+      .catch(() => {});
+  }, [searchParams]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -136,32 +149,32 @@ export default function Contacts() {
   };
 
   const handleBulkDelete = async (ids) => {
-  try {
-    await Promise.all(
-      ids.map((id) => fetch(`${API_URL}/contacts/${id}`, { method: "DELETE", headers: authHeaders() }))
-    );
-    fetchContacts();
-  } catch (err) {
-    setError("Some contacts could not be deleted.");
-  }
-};
+    try {
+      await Promise.all(
+        ids.map((id) => fetch(`${API_URL}/contacts/${id}`, { method: "DELETE", headers: authHeaders() }))
+      );
+      fetchContacts();
+    } catch (err) {
+      setError("Some contacts could not be deleted.");
+    }
+  };
 
-const handleBulkUnsubscribe = async (ids) => {
-  try {
-    await Promise.all(
-      ids.map((id) =>
-        fetch(`${API_URL}/contacts/${id}`, {
-          method: "PATCH",
-          headers: authHeaders(),
-          body: JSON.stringify({ status: "unsubscribed" }),
-        })
-      )
-    );
-    fetchContacts();
-  } catch (err) {
-    setError("Some contacts could not be unsubscribed.");
-  }
-};
+  const handleBulkUnsubscribe = async (ids) => {
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`${API_URL}/contacts/${id}`, {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({ status: "unsubscribed" }),
+          })
+        )
+      );
+      fetchContacts();
+    } catch (err) {
+      setError("Some contacts could not be unsubscribed.");
+    }
+  };
 
   const unsubRate = total > 0 ? ((unsubCount / total) * 100).toFixed(1) : "0.0";
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -197,20 +210,20 @@ const handleBulkUnsubscribe = async (ids) => {
       </div>
 
       <ContactsTable
-      contacts={contacts}
-      loading={loading}
-      search={search}
-      setSearch={setSearch}
-      onEdit={openEdit}
-      onDelete={handleDelete}
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
-      statusFilter={statusFilter}
-      onStatusFilterChange={setStatusFilter}
-      onBulkDelete={handleBulkDelete}
-      onBulkUnsubscribe={handleBulkUnsubscribe}
-    />
+        contacts={contacts}
+        loading={loading}
+        search={search}
+        setSearch={setSearch}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onBulkDelete={handleBulkDelete}
+        onBulkUnsubscribe={handleBulkUnsubscribe}
+      />
 
       {modalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 px-4">
