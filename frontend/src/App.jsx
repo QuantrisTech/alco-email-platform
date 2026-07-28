@@ -42,11 +42,11 @@ export default function App() {
       <Route path="/campaigns" element={<ProtectedLayout><Campaigns /></ProtectedLayout>} />
       <Route path="/automations" element={<ProtectedLayout><Automations /></ProtectedLayout>} />
       <Route path="/analytics" element={<ProtectedLayout><Analytics /></ProtectedLayout>} />
+      <Route path="/team" element={<ProtectedLayout><Team /></ProtectedLayout>} />
 
       {/* Fallback Catch-All: Anything else redirects home */}
       <Route path="*" element={<Navigate to="/" replace />} />
 
-      <Route path="/team" element={<Layout title="Team"><Team /></Layout>} />
     </Routes>
   );
 }
