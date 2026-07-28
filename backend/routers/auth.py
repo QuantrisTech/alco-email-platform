@@ -49,7 +49,10 @@ def get_me(current_user_email: str = Depends(get_current_user)):
     return UserOut(id=str(user.id), email=user.email, name=user.name, role=user.role)
 
 @router.post("/register", response_model=UserOut, status_code=201)
-def register(req: RegisterRequest, _admin: str = Depends(get_current_user)):
+def register(req: RegisterRequest, current_email: str = Depends(get_current_user)):
+    current_user = User.objects(email=current_email).first()
+    if not current_user or current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can add new team members")
     # Only an already-authenticated user can create new users.
     # This prevents open self-signup on an internal tool.
     if User.objects(email=req.email).first():

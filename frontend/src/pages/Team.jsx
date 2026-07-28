@@ -42,6 +42,15 @@ export default function Team() {
     fetchUsers();
   }, [fetchUsers]);
 
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+
+useEffect(() => {
+  fetch(`${API_URL}/auth/me`, { headers: authHeaders() })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => setCurrentUserRole(data?.role || null))
+    .catch(() => {});
+}, []);
+
   const openInvite = () => {
     setForm({ name: "", email: "", password: "", role: "editor" });
     setModalOpen(true);
@@ -85,13 +94,15 @@ export default function Team() {
       title="Team"
       description="Manage who has access to this platform."
       actions={
-        <button
-          onClick={openInvite}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95"
-        >
-          <Plus className="size-4" /> Add Team Member
-        </button>
-      }
+        currentUserRole === "admin" ? (
+            <button
+                onClick={openInvite}
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95"
+            >
+                <Plus className="size-4" /> Add Team Member
+            </button>
+  ) : null
+}
     >
       {error && (
         <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-destructive bg-destructive/10 border-destructive/20">
