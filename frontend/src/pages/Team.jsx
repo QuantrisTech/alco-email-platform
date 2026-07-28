@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, X, Users as UsersIcon, Shield } from "lucide-react";
+import { Plus, X, Users as UsersIcon, Shield, Trash2 } from "lucide-react";
 import { PageShell } from "../components/Topbar";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -79,6 +79,20 @@ useEffect(() => {
     }
   };
 
+  const handleDeleteUser = async (user) => {
+    if (!confirm(`Remove ${user.name || user.email} from the team?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/auth/users/${user.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error("Failed to remove user");
+      fetchUsers();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   function initials(name) {
     return (name || "?")
       .split(" ")
@@ -135,10 +149,18 @@ useEffect(() => {
                     <p className="text-xs text-muted-foreground">{u.email}</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground capitalize">
-                  <Shield className="size-3" />
-                  {u.role}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground capitalize">
+                        <Shield className="size-3" />
+                        {u.role}
+                    </span>
+                    <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition"
+                >
+                        <Trash2 className="size-4" />
+                    </button>
+                </div>
               </li>
             ))}
           </ul>
