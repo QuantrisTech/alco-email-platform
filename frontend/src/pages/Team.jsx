@@ -89,20 +89,29 @@ useEffect(() => {
       .toUpperCase();
   }
 
+  if (currentUserRole && currentUserRole !== "admin") {
+  return (
+    <PageShell title="Team" description="Manage who has access to this platform.">
+      <div className="text-center py-16 text-muted-foreground">
+        Only admins can view team management.
+      </div>
+    </PageShell>
+  );
+}
+
   return (
     <PageShell
       title="Team"
       description="Manage who has access to this platform."
       actions={
-        currentUserRole === "admin" ? (
-            <button
-                onClick={openInvite}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95"
-            >
-                <Plus className="size-4" /> Add Team Member
-            </button>
-  ) : null
+  <button
+    onClick={openInvite}
+    className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition-colors hover:brightness-95"
+  >
+    <Plus className="size-4" /> Add Team Member
+  </button>
 }
+  
     >
       {error && (
         <div className="mb-4 text-sm rounded-lg px-4 py-3 border text-destructive bg-destructive/10 border-destructive/20">

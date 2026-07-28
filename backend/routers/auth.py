@@ -69,6 +69,22 @@ def register(req: RegisterRequest, current_email: str = Depends(get_current_user
 
     return UserOut(id=str(user.id), email=user.email, name=user.name, role=user.role)
 
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: str, current_email: str = Depends(get_current_user)):
+    current_user = User.objects(email=current_email).first()
+    if not current_user or current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can remove team members")
+
+    target = User.objects(id=user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target.email == current_user.email:
+        raise HTTPException(status_code=400, detail="You cannot remove your own account")
+
+    target.delete()
+    return None
+
 @router.get("/users", response_model=list[UserOut])
 def list_users(_admin: str = Depends(get_current_user)):
     return [
