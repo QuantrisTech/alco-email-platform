@@ -36,6 +36,10 @@ const nav = [
     section: "Insights",
     items: [{ href: "/analytics", label: "Analytics", icon: BarChart3 }],
   },
+  {
+    section: "Settings",
+    items: [{ href: "/team", label: "Team", icon: Users }],
+  },
 ];
 
 export function Sidebar() {

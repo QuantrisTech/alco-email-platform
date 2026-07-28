@@ -65,3 +65,10 @@ def register(req: RegisterRequest, _admin: str = Depends(get_current_user)):
     ).save()
 
     return UserOut(id=str(user.id), email=user.email, name=user.name, role=user.role)
+
+@router.get("/users", response_model=list[UserOut])
+def list_users(_admin: str = Depends(get_current_user)):
+    return [
+        UserOut(id=str(u.id), email=u.email, name=u.name, role=u.role)
+        for u in User.objects.order_by("-created_at")
+    ]

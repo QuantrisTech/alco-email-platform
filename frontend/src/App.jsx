@@ -1,3 +1,4 @@
+import Team from './pages/Team'
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -44,6 +45,8 @@ export default function App() {
 
       {/* Fallback Catch-All: Anything else redirects home */}
       <Route path="*" element={<Navigate to="/" replace />} />
+
+      <Route path="/team" element={<Layout title="Team"><Team /></Layout>} />
     </Routes>
   );
 }
