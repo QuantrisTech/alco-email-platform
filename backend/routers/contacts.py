@@ -146,6 +146,16 @@ def delete_contact(contact_id: str, _user: str = Depends(get_current_user)):
     doc.delete()
     return None
 
+@router.get("/distinct/batches")
+def get_distinct_batches(_user: str = Depends(get_current_user)):
+    batches = Contact.objects.distinct("batch")
+    return {"batches": [b for b in batches if b]}
+
+
+@router.get("/distinct/courses")
+def get_distinct_courses(_user: str = Depends(get_current_user)):
+    courses = Contact.objects.distinct("course")
+    return {"courses": [c for c in courses if c]}
 
 # ---------- Helpers ----------
 

@@ -88,6 +88,9 @@ def _count_recipients(recipients_filter: dict) -> int:
         qs = qs.filter(batch=rvalue)
     elif rtype == "course" and rvalue:
         qs = qs.filter(course=rvalue)
+    elif rtype == "custom" and rvalue:
+        emails = rvalue if isinstance(rvalue, list) else [rvalue]
+        qs = qs.filter(email__in=emails)
     return qs.count()
 
 class CampaignListOut(BaseModel):
@@ -167,18 +170,18 @@ class SendResultOut(BaseModel):
 
 
 def _resolve_recipients(recipients_filter: dict) -> list:
-    """Turns a campaign's recipients filter into a real Contact queryset,
-    always excluding unsubscribed contacts regardless of filter type."""
     rtype = recipients_filter.get("type", "all")
     rvalue = recipients_filter.get("value")
 
-    qs = Contact.objects(status="active")  # never send to unsubscribed, ever
+    qs = Contact.objects(status="active")
 
     if rtype == "batch" and rvalue:
         qs = qs.filter(batch=rvalue)
     elif rtype == "course" and rvalue:
         qs = qs.filter(course=rvalue)
-    # rtype == "all" — no additional filter, every active contact
+    elif rtype == "custom" and rvalue:
+        emails = rvalue if isinstance(rvalue, list) else [rvalue]
+        qs = qs.filter(email__in=emails)
 
     return list(qs)
 
