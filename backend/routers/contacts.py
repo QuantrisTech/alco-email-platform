@@ -23,6 +23,7 @@ class ContactCreate(BaseModel):
     status: Optional[str] = "active"
 
 
+
 class ContactUpdate(BaseModel):
     # All optional — PATCH-style partial update, not a full PUT replace.
     name: Optional[str] = None
@@ -157,7 +158,7 @@ def get_distinct_courses(_user: str = Depends(get_current_user)):
     courses = Contact.objects.distinct("course")
     return {"courses": [c for c in courses if c]}
 
-# ---------- Helpers ----------
+# ---------- Helpers -----------
 
 def _get_or_404(contact_id: str) -> Contact:
     doc = Contact.objects(id=contact_id).first()
