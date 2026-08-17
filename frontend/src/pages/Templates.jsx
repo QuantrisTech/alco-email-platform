@@ -2,7 +2,7 @@ import { Plus, Pencil, Trash2, FileText, Search, X, Copy } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell } from "../components/Topbar";
-import EmailBlockBuilder from "../components/EmailBlockBuilder";
+import RichTextEditor from "../components/RichTextEditor";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -254,10 +254,10 @@ export default function Templates() {
               </div>
               <div>
   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Body</label>
-  <EmailBlockBuilder
-    initialBody={form.body}
-    onChange={(html) => setForm((f) => ({ ...f, body: html }))}
-  />
+  <RichTextEditor
+  value={form.body}
+  onChange={(html) => setForm((f) => ({ ...f, body: html }))}
+/>
 </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
