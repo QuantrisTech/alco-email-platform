@@ -4,8 +4,8 @@ import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
-import Color from "@tiptap/extension-color";
-import TextStyle from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
 import { useEffect } from "react";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
